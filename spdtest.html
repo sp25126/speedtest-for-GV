@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Futuristic Speed Test</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #e0f7ff, #ffffff);
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #container {
+            max-width: 800px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 150, 255, 0.3);
+            overflow: hidden;
+            text-align: center;
+            padding: 30px;
+            border: 2px solid rgba(0, 150, 255, 0.4);
+        }
+        #speed-result {
+            font-size: 22px;
+            color: #0099ff;
+            font-weight: bold;
+            white-space: pre-line;
+            transition: all 0.3s ease;
+        }
+        button {
+            background: linear-gradient(45deg, #0099ff, #33ccff);
+            color: #fff;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 18px;
+            margin: 12px;
+            box-shadow: 0 4px 20px rgba(0, 150, 255, 0.5);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 25px rgba(0, 150, 255, 0.7);
+        }
+        #leaderboard {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            border-top: 1px solid rgba(0, 150, 255, 0.3);
+        }
+        h3 {
+            color: #0099ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        li {
+            padding: 12px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.3);
+            margin: 6px 0;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        canvas {
+            display: block;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <button onclick="runSpeedTest()">Start Speed Test</button>
+        <canvas id="speed-gauge" width="300" height="220"></canvas>
+        <div id="speed-result">Click to test your speed</div>
+        <button id="submit-btn" onclick="submitSpeed()" style="display: none;">Submit Result</button>
+        <div id="leaderboard">
+            <h3>Submitted Speeds</h3>
+            <ul id="speed-list"></ul>
+        </div>
+    </div>
+
+    <script>
+        let latestSpeed = {};
+        const canvas = document.getElementById("speed-gauge");
+        const ctx = canvas.getContext("2d");
+        const maxSpeed = 100; // Adjust based on expected max speed (Mbps)
+
+        // Draw advanced speedometer
+        function drawGauge(speed, label) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height * 0.75;
+            const radius = canvas.width * 0.4;
+
+            // Background arc with gradient
+            const bgGradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+            bgGradient.addColorStop(0, "#ddd");
+            bgGradient.addColorStop(1, "#e6f0ff");
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, Math.PI, 2 * Math.PI, false);
+            ctx.lineWidth = 15;
+            ctx.strokeStyle = bgGradient;
+            ctx.stroke();
+
+            // Speed arc with gradient
+            const speedGradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+            speedGradient.addColorStop(0, "#0099ff");
+            speedGradient.addColorStop(1, "#33ccff");
+            const speedPercent = Math.min(speed / maxSpeed, 1);
+            const endAngle = Math.PI + (speedPercent * Math.PI);
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, Math.PI, endAngle, false);
+            ctx.lineWidth = 15;
+            ctx.strokeStyle = speedGradient;
+            ctx.stroke();
+
+            // Tick marks
+            for (let i = 0; i <= 10; i++) {
+                const tickAngle = Math.PI + (i / 10) * Math.PI;
+                const innerRadius = radius - 20;
+                const outerRadius = radius - 10;
+                ctx.beginPath();
+                ctx.moveTo(centerX + innerRadius * Math.cos(tickAngle), centerY + innerRadius * Math.sin(tickAngle));
+                ctx.lineTo(centerX + outerRadius * Math.cos(tickAngle), centerY + outerRadius * Math.sin(tickAngle));
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = "#666";
+                ctx.stroke();
+            }
+
+            // Needle
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            const needleLength = radius * 0.85;
+            const needleAngle = Math.PI + (speedPercent * Math.PI);
+            ctx.lineTo(centerX + needleLength * Math.cos(needleAngle), centerY + needleLength * Math.sin(needleAngle));
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = "#333";
+            ctx.shadowBlur = 5;
+            ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Speed and label text
+            ctx.font = "bold 20px Arial";
+            ctx.fillStyle = "#0099ff";
+            ctx.textAlign = "center";
+            ctx.fillText(`${speed.toFixed(1)} Mbps`, centerX, centerY - 20);
+            ctx.font = "14px Arial";
+            ctx.fillText(label, centerX, centerY + 40);
+        }
+
+        // Load submitted speeds from localStorage
+        function loadSubmittedSpeeds() {
+            const submittedSpeeds = JSON.parse(localStorage.getItem("speedResults") || "[]");
+            const list = document.getElementById("speed-list");
+            list.innerHTML = "";
+            submittedSpeeds.forEach(result => {
+                const li = document.createElement("li");
+                li.textContent = `Download: ${result.download} Mbps, Upload: ${result.upload} Mbps, Ping: ${result.ping} ms`;
+                list.appendChild(li);
+            });
+        }
+
+        // Run speed test with LibreSpeed
+        async function runSpeedTest() {
+            const resultDiv = document.getElementById("speed-result");
+            const submitBtn = document.getElementById("submit-btn");
+            resultDiv.textContent = "Initializing...";
+            submitBtn.style.display = "none";
+            drawGauge(0, "Starting...");
+
+            try {
+                const speedTestUrl = "https://librespeed.org/speedtest.js"; // Public LibreSpeed instance
+                const script = document.createElement("script");
+                script.src = speedTestUrl;
+                script.onload = () => {
+                    const s = new Speedtest();
+                    s.onupdate = data => {
+                        if (data.testState === 1) { // Download test
+                            drawGauge(parseFloat(data.dlStatus), "Testing Download");
+                            resultDiv.textContent = `Download: ${parseFloat(data.dlStatus).toFixed(2)} Mbps`;
+                        } else if (data.testState === 3) { // Upload test
+                            drawGauge(parseFloat(data.ulStatus), "Testing Upload");
+                            resultDiv.textContent = `Upload: ${parseFloat(data.ulStatus).toFixed(2)} Mbps`;
+                        } else if (data.testState === 4) { // Test completed
+                            latestSpeed = {
+                                download: parseFloat(data.dlStatus).toFixed(2),
+                                upload: parseFloat(data.ulStatus).toFixed(2),
+                                ping: parseFloat(data.pingStatus).toFixed(0)
+                            };
+                            drawGauge(latestSpeed.download, "Complete");
+                            resultDiv.textContent = `Download: ${latestSpeed.download} Mbps\nUpload: ${latestSpeed.upload} Mbps\nPing: ${latestSpeed.ping} ms`;
+                            submitBtn.style.display = "inline-block";
+                        }
+                    };
+                    s.onend = () => console.log("Speed test completed");
+                    s.start();
+                };
+                script.onerror = () => {
+                    throw new Error("Failed to load speedtest.js. Host this file on a web server.");
+                };
+                document.body.appendChild(script);
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}\nHost this on a server (e.g., Netlify, GitHub Pages).`;
+                drawGauge(0, "Error");
+            }
+        }
+
+        // Submit speed result to localStorage
+        function submitSpeed() {
+            if (!latestSpeed.download) {
+                alert("Run a speed test first!");
+                return;
+            }
+
+            const submittedSpeeds = JSON.parse(localStorage.getItem("speedResults") || "[]");
+            submittedSpeeds.push(latestSpeed);
+            localStorage.setItem("speedResults", JSON.stringify(submittedSpeeds));
+            loadSubmittedSpeeds();
+            document.getElementById("submit-btn").style.display = "none";
+            alert("Speed submitted successfully!");
+        }
+
+        // Initial setup
+        loadSubmittedSpeeds();
+        drawGauge(0, "Ready");
+    </script>
+</body>
+</html>
